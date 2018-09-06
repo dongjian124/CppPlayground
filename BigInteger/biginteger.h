@@ -17,16 +17,19 @@ public:
     friend std::ostream&operator<<(std::ostream&, const BigInteger&);
 
 
+    BigInteger operator+();
+    BigInteger operator-();
+
     BigInteger&operator++();
     BigInteger operator++(int);
     BigInteger&operator--();
     BigInteger operator--(int);
 
-    BigInteger operator+(const BigInteger&);
-    BigInteger operator-(const BigInteger&);
-    BigInteger operator*(const BigInteger&);
-    BigInteger operator/(const BigInteger&);
-    BigInteger operator%(const BigInteger&);
+    BigInteger operator+(const BigInteger&) const;
+    BigInteger operator-(const BigInteger&) const;
+    BigInteger operator*(const BigInteger&) const;
+    BigInteger operator/(const BigInteger&) const;
+    BigInteger operator%(const BigInteger&) const;
 
     BigInteger&operator+=(const BigInteger&);
     BigInteger&operator-=(const BigInteger&);
@@ -34,20 +37,22 @@ public:
     BigInteger&operator/=(const BigInteger&);
     BigInteger&operator%=(const BigInteger&);
 
-    bool operator == (const BigInteger&);
-    bool operator != (const BigInteger&);
-    bool operator < (const BigInteger&);
-    bool operator <= (const BigInteger&);
-    bool operator > (const BigInteger&);
-    bool operator >= (const BigInteger&);
+    bool operator == (const BigInteger&) const;
+    bool operator != (const BigInteger&) const;
+    bool operator < (const BigInteger&) const;
+    bool operator <= (const BigInteger&) const;
+    bool operator > (const BigInteger&) const;
+    bool operator >= (const BigInteger&) const;
 
 
     BigInteger operator=(const std::string&);
 
 
-    BigInteger(long long value)
+    BigInteger(long long value = 0)
     {
-        this->operator=(std::to_string(value));
+        std::stringstream ss;
+        ss << value;
+        this->operator=(ss.str());
     }
     BigInteger(const std::string& s)
     {
@@ -61,6 +66,7 @@ private:
     std::vector<int32_t> number_;
     bool negative_;
 
+    void trim_prefix_zeros();
 };
 
 #endif //PROJECT_BIGINTEGER_H
