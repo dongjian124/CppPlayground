@@ -122,14 +122,16 @@ void BigInteger::trim_prefix_zeros()
 BigInteger BigInteger::operator*(const BigInteger &rhs) const
 {
     auto n = number_.size() , m = rhs.number_.size();
-    BigInteger mul = 0;
+    BigInteger mul;
+    if((n == 1 && number_[0] == 0) || (m == 1 && rhs.number_[0] == 0))
+        return mul;
     mul.number_.resize(n + m);
     for(auto i = 0; i < n; ++i)
     {
         auto carry = 0;
         for(auto j = 0 ; j < m; ++j)
         {
-            carry += number_[i] * number_[j] + mul.number_[i + j];
+            carry += number_[i] * rhs.number_[j] + mul.number_[i + j];
             mul.number_[i + j] = carry % 10;
             carry /= 10;
         }
@@ -140,9 +142,84 @@ BigInteger BigInteger::operator*(const BigInteger &rhs) const
     return mul;
 }
 
-BigInteger BigInteger::operator/(const BigInteger &) const
+int BigInteger::Sub(std::vector<int>& lhs , const std::vector<int> &rhs, int len1, int len2)
 {
+    int i;
+    if(len1 < len2)
+        return -1;
+    if(len1 == len2)
+    {
+        for(i = len1 - 1; i >= 0 ; --i)
+        {
+            if(lhs[i] < rhs[i])
+                return -1;
+            else if(lhs[i] > rhs[i])
+                break;
+        }
+    }
+    for(i = 0; i < len1; ++i)
+    {
+        lhs[i] -= rhs[i];
+        if(lhs[i] < 0)
+        {
+            lhs[i] += 10;
+            lhs[i + 1];
+        }
+    }
+    for(i = len1 - 1; i >= 0; --i)
+        if(lhs[i])
+            return i + 1;
+    return 0;
+}
 
+BigInteger BigInteger::operator/(BigInteger  rhs)
+{
+    BigInteger ret , lhs(*this);
+
+    int len1 = lhs.number_.size() , len2 = rhs.number_.size();
+    if(len1 < len2)
+        return ret;
+    rhs.number_.resize(len1);
+    len1 = Sub(lhs.number_, rhs.number_, len1, len2);
+    if(len1 < 0)
+        return ret;
+    else if(len1 == 0)
+        return BigInteger(1);
+    ret.number_.resize(len1);
+    ++ret.number_[0];
+    int times = len1 - len2;
+    if(times < 0)
+        goto OutPutResult;
+    else if(times > 0)
+    {
+        for(auto i = len1 - 1; i >= 0; --i)
+        {
+            if(i >= times)
+                rhs[i] = rhs[i - times];
+            else
+                rhs[i] = 0;
+        }
+    }
+    len2 = len1;
+    for(auto j = 0; j <= times; ++j)
+    {
+        int tmp;
+        while((tmp = Sub(lhs.number_ , rhs.number_.begin() + j , len1 , len2 - j)) >= 0)
+        {
+            len1 = tmp;
+            ++ret.number_[times - j];
+        }
+    }
+OutPutResult:
+    for(auto i = 0 ; i < ret.number_.size(); ++i)
+    {
+        if(ret.number_[i] >= 10)
+        {
+            ret.number_[i + 1] += ret.number_[i] / 10;
+            ret.number_[i] %= 10;
+        }
+    }
+    return ret;
 }
 
 BigInteger BigInteger::operator%(const BigInteger &) const

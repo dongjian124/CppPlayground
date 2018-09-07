@@ -28,7 +28,7 @@ public:
     BigInteger operator+(const BigInteger&) const;
     BigInteger operator-(const BigInteger&) const;
     BigInteger operator*(const BigInteger&) const;
-    BigInteger operator/(const BigInteger&) const;
+    BigInteger operator/(BigInteger) ;
     BigInteger operator%(const BigInteger&) const;
 
     BigInteger&operator+=(const BigInteger&);
@@ -60,6 +60,7 @@ public:
     }
 
     bool IsNegetive();
+    void Clear();
 
 private:
 
@@ -67,6 +68,7 @@ private:
     bool negative_;
 
     void trim_prefix_zeros();
+    int Sub(std::vector<int>& lhs , const std::vector<int>& rhs , int len1 , int len2);
 };
 
 #endif //PROJECT_BIGINTEGER_H
