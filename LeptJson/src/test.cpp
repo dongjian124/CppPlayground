@@ -94,11 +94,11 @@ INSTANTIATE_TEST_CASE_P(MyTestNumber, TestNumber, ::testing::Values
         pair<double, char *>{-1.7976931348623157e+308, "-1.7976931348623157e+308"}
     ));
 
-class TestWrongNumber : public ::testing::TestWithParam<const char *>
+class TestInvalid : public ::testing::TestWithParam<const char *>
 {
 };
 
-TEST_P(TestWrongNumber, test_wrong_number)
+TEST_P(TestInvalid, test_wrong_number)
 {
     auto it = GetParam();
     LeptJson v;
@@ -107,9 +107,9 @@ TEST_P(TestWrongNumber, test_wrong_number)
     EXPECT_EQ(LeptType::kLeptNull, LeptGetType(v)) << "wrong number is: " << it;
 }
 
-INSTANTIATE_TEST_CASE_P(MyTestWrongNumber, TestWrongNumber, ::testing::Values
-    (
-        "+0", "+1", ".123", "1.", "INF", "inf", "NAN", "nan"));
+INSTANTIATE_TEST_CASE_P(MyTestWrongNumber, TestInvalid, ::testing::Values
+    ("+0", "+1", ".123", "1.", "INF", "inf", "NAN", "nan" , "[1, ]" , "[\"a\" , nul]"));
+
 
 class TestAccessString : public ::testing::Test
 {
@@ -243,6 +243,79 @@ TEST_F(TestArray, test_array)
         }
     }
 }
+
+
+class TestParseWrong : public ::testing::TestWithParam<pair<LeptParseStatus , const char*>>
+{
+public:
+
+    LeptJson v;
+
+    void SetUp() override
+    {
+        LeptInit(v);
+    }
+
+    void TearDown() override
+    {
+        LeptFree(v);
+    }
+};
+
+TEST_P(TestParseWrong , test_parse_wrong)
+{
+    auto it = GetParam();
+    v.type_ = LeptType::kLeptFalse;
+    EXPECT_EQ(it.first , LeptParse(v , it.second)) << "wrong test_case is: " << it.second;
+    EXPECT_EQ(LeptType::kLeptNull , LeptGetType(v)) << "wrong test_case is: " << it.second;
+}
+
+INSTANTIATE_TEST_CASE_P(MyTestParseWrong, TestParseWrong , ::testing::Values(
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseRootNotSingular , "null x"),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseRootNotSingular , "0123"),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseRootNotSingular , "0x0"),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseRootNotSingular ,"0x123"),
+
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseNumberTooBig , "1e309"),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseNumberTooBig , "-1e309"),
+
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseMissQuotationMark , "\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseMissQuotationMark ,"\"abc"),
+
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidStringEscape , "\"\\v\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidStringEscape , "\"\\'\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidStringEscape , "\"\\0\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidStringEscape , "\"\\x12\""),
+
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidStringChar , "\"\x01\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidStringChar , "\"\x1F\""),
+
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u\"") ,
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u0\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u01\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u012\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex ,"\"\\u/000\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex ,"\"\\uG000\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex ,"\"\\u0/00\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u0G00\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u0/00\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u00G0\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u000/\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex ,"\"\\u000G\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeHex , "\"\\u 123\""),
+
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeSurrogate , "\"\\uD800\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeSurrogate ,"\"\\uDBFF\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeSurrogate , "\"\\uD800\\\\\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeSurrogate , "\"\\uD800\\uDBFF\""),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseInvalidUnicodeSurrogate , "\"\\uD800\\uE000\""),
+
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseMissCommaOrSquareBracket , "[1"),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseMissCommaOrSquareBracket , "[1}"),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseMissCommaOrSquareBracket , "[1 , 2"),
+    pair<LeptParseStatus  , const char*>(LeptParseStatus::kLeptParseMissCommaOrSquareBracket , "[[]")
+
+));
 
 int main()
 {
