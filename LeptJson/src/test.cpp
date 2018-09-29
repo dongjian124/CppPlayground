@@ -14,14 +14,12 @@ protected:
         expect_value_.type_ = LeptType::kLeptFalse;
         true_.type_ = LeptType::kLeptFalse;
         false_.type_ = LeptType::kLeptTrue;
-        string_.type_ = LeptType::kLeptFalse;
     }
 
     LeptJson null_;
     LeptJson expect_value_;
     LeptJson true_;
     LeptJson false_;
-    LeptJson string_;
 };
 
 
@@ -308,11 +306,11 @@ TEST_F(TestObject, test_object)
         EXPECT_EQ(LeptType::kLeptObject, LeptGetType(o));
         for (auto i = 0; i < 3; ++i)
         {
-            auto ov = LeptGetObjectValue(o , i);
-            EXPECT_TRUE('1' + i == LeptGetObjectKey(o , i)[0]);
-            EXPECT_EQ(1 , LeptGetObjectKeyLength(o , i));
-            EXPECT_EQ(LeptType::kLeptNumber , LeptGetType(ov));
-            EXPECT_DOUBLE_EQ(i + 1.0 , LeptGetNumber(ov));
+            auto ov = LeptGetObjectValue(o, i);
+            EXPECT_TRUE('1' + i == LeptGetObjectKey(o, i)[0]);
+            EXPECT_EQ(1, LeptGetObjectKeyLength(o, i));
+            EXPECT_EQ(LeptType::kLeptNumber, LeptGetType(ov));
+            EXPECT_DOUBLE_EQ(i + 1.0, LeptGetNumber(ov));
         }
     }
 }
@@ -404,6 +402,125 @@ INSTANTIATE_TEST_CASE_P(MyTestParseWrong, TestParseWrong, ::testing::Values(
     pair<LeptParseStatus, const char *>(LeptParseStatus::kLeptParseMissCommaOrCurlyBracket, "{\"a\":1 \"b\""),
     pair<LeptParseStatus, const char *>(LeptParseStatus::kLeptParseMissCommaOrCurlyBracket, "{\"a\":{}")
 
+));
+
+class TestStringify : public ::testing::TestWithParam<const char *>
+{
+public:
+
+    LeptJson v;
+    char *json2;
+
+    void SetUp() override
+    {
+        LeptInit(v);
+        json2 = nullptr;
+    }
+
+    void TearDown() override
+    {
+        LeptFree(v);
+        free(json2);
+    }
+};
+
+TEST_P(TestStringify, test_stringify)
+{
+    auto it = GetParam();
+    EXPECT_EQ(LeptParseStatus::kLeptParseOk, LeptParse(v, it));
+    size_t len;
+    json2 = LeptStringify(v, len);
+    EXPECT_STREQ(json2, it);
+}
+
+INSTANTIATE_TEST_CASE_P(MyTestStringify, TestStringify, ::testing::Values(
+    "null",
+    "false",
+    "true",
+    "0",
+    "-0",
+    "1",
+    "-1",
+    "1.5",
+    "-1.5",
+    "3.25",
+    "1e+20",
+    "1.234e+20",
+    "1.234e-20",
+    "-1.234e+20",
+    "1.0000000000000002",
+    "4.9406564584124654e-324",
+    "-4.9406564584124654e-324",
+    "2.2250738585072009e-308",
+    "-2.2250738585072009e-308",
+    "2.2250738585072014e-308",
+    "-2.2250738585072014e-308",
+    "1.7976931348623157e+308",
+    "-1.7976931348623157e+308",
+    "\"\"",
+    "\"Hello\"",
+    "\"Hello\\nWorld\"",
+    "\"\\\" \\\\ / \\b \\f \\n \\r \\t\"",
+    "\"Hello\\u0000World\"",
+    "[]",
+    "[null,false,true,123,\"abc\",[1,2,3]]",
+    "{}",
+    "{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,\"2\":2,\"3\":3}}"
+));
+
+class TestEqual : public ::testing::TestWithParam<tuple<const char *, const char *, int>>
+{
+public:
+
+    LeptJson lhs, rhs;
+
+    void SetUp() override
+    {
+        LeptInit(lhs);
+        LeptInit(rhs);
+    }
+
+    void TearDown() override
+    {
+        LeptFree(lhs);
+        LeptFree(rhs);
+    }
+};
+
+TEST_P(TestEqual, test_equal)
+{
+    auto it = GetParam();
+    auto json1 = std::get<0>(it);
+    auto json2 = std::get<1>(it);
+    auto eql = std::get<2>(it);
+    EXPECT_EQ(LeptParseStatus::kLeptParseOk , LeptParse(lhs , json1));
+    EXPECT_EQ(LeptParseStatus::kLeptParseOk , LeptParse(rhs , json2));
+    EXPECT_EQ(eql , (lhs == rhs));
+}
+
+INSTANTIATE_TEST_CASE_P(MyTestEqual, TestEqual, ::testing::Values(
+    make_tuple("true", "true", 1),
+    make_tuple("true", "false", 0),
+    make_tuple("false", "false", 1),
+    make_tuple("null", "null", 1),
+    make_tuple("null", "0", 0),
+    make_tuple("123", "123", 1),
+    make_tuple("123", "456", 0),
+    make_tuple("\"abc\"", "\"abc\"", 1),
+    make_tuple("\"abc\"", "\"abcd\"", 0),
+    make_tuple("[]", "[]", 1),
+    make_tuple("[]", "null", 0),
+    make_tuple("[1,2,3]", "[1,2,3]", 1),
+    make_tuple("[1,2,3]", "[1,2,3,4]", 0),
+    make_tuple("[[]]", "[[]]", 1),
+    make_tuple("{}", "{}", 1),
+    make_tuple("{}", "null", 0),
+    make_tuple("{\"a\":1,\"b\":2}", "{\"a\":1,\"b\":2}", 1),
+    make_tuple("{\"a\":1,\"b\":2}", "{\"b\":2,\"a\":1}", 1),
+    make_tuple("{\"a\":1,\"b\":2}", "{\"a\":1,\"b\":3}", 0),
+    make_tuple("{\"a\":1,\"b\":2}", "{\"a\":1,\"b\":2,\"c\":3}", 0),
+    make_tuple("{\"a\":{\"b\":{\"c\":{}}}}", "{\"a\":{\"b\":{\"c\":{}}}}", 1),
+    make_tuple("{\"a\":{\"b\":{\"c\":{}}}}", "{\"a\":{\"b\":{\"c\":[]}}}", 0)
 ));
 
 int main()
