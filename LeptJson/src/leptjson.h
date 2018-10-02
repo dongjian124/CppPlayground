@@ -6,13 +6,18 @@
 #define PROJECT_LEPTJSON_H
 
 #include <cstddef>
+#include <iostream>
 enum class LeptType
 {
     kLeptNull, kLeptFalse, kLeptTrue, kLeptNumber, kLeptString, kLeptArray, kLeptObject
 };
 
+std::ostream& operator<<(std::ostream& os , LeptType);
+
 const int kLeptParseStackInitSize = 256;
 const int kLeptParseStringifyInitSize = 256;
+
+#define LeptInit(v) do{(v).type_ = LeptType::kLeptNull; } while(0)
 
 enum class LeptParseStatus
 {
@@ -34,6 +39,9 @@ enum class LeptParseStatus
 
 
 class LeptMember;
+class LeptJson;
+
+void LeptFree(LeptJson&);
 
 class LeptJson
 {
@@ -42,17 +50,20 @@ public:
     union
     {
         struct { char *s_; size_t len_; }; //string
-        struct { LeptJson* e_; size_t asize_ , capacity_;}; //array
-        struct { LeptMember* m_; size_t msize_;}; //member
+        struct { LeptJson* e_; size_t asize_ , acapacity_;}; //array
+        struct { LeptMember* m_; size_t msize_ , mcapacity_;}; //member
         double n_;                        //number
     } u;
-//    LeptJson() = default;
-//    LeptJson(const LeptJson&); //deep copy
-//    LeptJson& operator=(LeptJson); //copy opeartor
+    LeptJson()
+    {
+        LeptInit(*this);
+    }
+    LeptJson(const LeptJson&); //deep copy
+    LeptJson& operator=(LeptJson); //copy opeartor
 //    LeptJson(LeptJson&&);  //move copy
 //    LeptJson& operator=(LeptJson&&); //move operator
 //
-//    void Swap(LeptJson& );
+    void Swap(LeptJson& );
 };
 
 class LeptMember
@@ -61,11 +72,14 @@ public:
     char* k_;
     size_t klen_;
     LeptJson v_;
+
+    LeptMember() : k_(nullptr) , klen_(0) , v_() {}
 };
 
 LeptParseStatus LeptParse(LeptJson &, const char *);
 
 LeptType LeptGetType(const LeptJson &);
+void LeptSetType(LeptJson& , LeptType);
 
 double LeptGetNumber(const LeptJson &);
 void LeptSetNumber(LeptJson&, double);
@@ -74,7 +88,6 @@ void LeptFree(LeptJson&);
 
 
 #define LeptSetNull(v) LeptFree(v)
-#define LeptInit(v) do{(v).type_ = LeptType::kLeptNull; } while(0)
 
 int LeptGetBoolean(const LeptJson &);
 void LeptSetBoolean(LeptJson& , int);

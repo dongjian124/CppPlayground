@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <cstdio>
+#include <algorithm>
 #include "leptjson.h"
 
 #define EXPECT(c, ch) do { assert(*c.json_ == (ch)); c.json_++; } while(0)
@@ -31,6 +32,36 @@ void LeptFree(LeptJson &v);
 static LeptParseStatus LeptParseValue(LeptContext &, LeptJson &);
 static LeptParseStatus LeptParseStringRaw(LeptContext &c, char **str, size_t *len);
 static LeptParseStatus LeptParseValue(LeptContext &c, LeptJson &v);
+
+
+std::ostream& operator<<(std::ostream& os , LeptType type)
+{
+    switch (type)
+    {
+        case LeptType::kLeptNull:
+            os << "LeptNull";
+            break;
+        case LeptType::kLeptObject:
+            os << "LeptObject";
+            break;
+        case LeptType::kLeptString:
+            os << "LeptString";
+            break;
+        case LeptType::kLeptArray:
+            os << "LeptArray";
+            break;
+        case LeptType::kLeptNumber:
+            os << "LeptNumber";
+            break;
+        case LeptType::kLeptTrue:
+            os << "LeptTrue";
+            break;
+        case LeptType::kLeptFalse:
+            os << "LeptFalse";
+            break;
+    }
+    return os;
+}
 
 static void LeptParseWhiteSpace(LeptContext &c)
 {
@@ -138,7 +169,7 @@ static LeptParseStatus LeptParseArray(LeptContext &c, LeptJson &v)
     if (*c.json_ == ']')
     {
         c.json_++;
-        LeptSetArray(v , 0);
+        LeptSetArray(v, 0);
         return LeptParseStatus::kLeptParseOk;
     }
     for (;;)
@@ -156,8 +187,8 @@ static LeptParseStatus LeptParseArray(LeptContext &c, LeptJson &v)
         else if (*c.json_ == ']')
         {
             c.json_++;
-            LeptSetArray(v , size);
-            memcpy(v.u.e_ , LeptContextPop(c , size * sizeof(LeptJson)) , size * sizeof(LeptJson));
+            LeptSetArray(v, size);
+            memcpy(v.u.e_, LeptContextPop(c, size * sizeof(LeptJson)), size * sizeof(LeptJson));
             v.u.asize_ = size;
             return LeptParseStatus::kLeptParseOk;
         } else
@@ -183,9 +214,7 @@ static LeptParseStatus LeptParseObject(LeptContext &c, LeptJson &v)
     if (*c.json_ == '}')
     {
         c.json_++;
-        v.type_ = LeptType::kLeptObject;
-        v.u.m_ = 0;
-        v.u.msize_ = 0;
+        LeptSetObject(v , 0);
         return LeptParseStatus::kLeptParseOk;
     }
     LeptMember m;
@@ -223,11 +252,10 @@ static LeptParseStatus LeptParseObject(LeptContext &c, LeptJson &v)
             LeptParseWhiteSpace(c);
         } else if (*c.json_ == '}')
         {
-            size_t s = sizeof(LeptMember) * size;
             c.json_++;
-            v.type_ = LeptType::kLeptObject;
+            LeptSetObject(v , size);
+            memcpy(v.u.m_ , LeptContextPop(c , size * sizeof(LeptMember)) , size * sizeof(LeptMember));
             v.u.msize_ = size;
-            memcpy(v.u.m_ = (LeptMember *) malloc(s), LeptContextPop(c, s), s);
             return LeptParseStatus::kLeptParseOk;
         } else
         {
@@ -380,7 +408,8 @@ void LeptFree(LeptJson &v)
 {
     switch (v.type_)
     {
-        case LeptType::kLeptString:free(v.u.s_);
+        case LeptType::kLeptString:
+            free(v.u.s_);
             break;
         case LeptType::kLeptArray:
             for (auto i = 0; i < v.u.asize_; ++i)
@@ -633,17 +662,19 @@ bool operator==(const LeptJson &lhs, const LeptJson &rhs)
             for (auto i = 0; i < lhs.u.asize_; ++i)
                 if (lhs.u.e_[i] != rhs.u.e_[i])
                     return false;
+            break;
         case LeptType::kLeptObject:
-            if(lhs.u.msize_ != rhs.u.msize_)
+            if (lhs.u.msize_ != rhs.u.msize_)
                 return false;
-            for(auto i = 0 ; i < lhs.u.msize_; ++i)
+            for (auto i = 0; i < lhs.u.msize_; ++i)
             {
-                auto ridx = LeptFindObjectIndex(rhs , lhs.u.m_[i].k_ , lhs.u.m_[i].klen_);
-                if(ridx == kLeptKeyNotExist)
+                auto ridx = LeptFindObjectIndex(rhs, lhs.u.m_[i].k_, lhs.u.m_[i].klen_);
+                if (ridx == kLeptKeyNotExist)
                     return false;
-                if(lhs.u.m_[i].v_ != rhs.u.m_[ridx].v_)
+                if (lhs.u.m_[i].v_ != rhs.u.m_[ridx].v_)
                     return false;
             }
+            break;
     }
     return true;
 }
@@ -653,30 +684,61 @@ bool operator!=(const LeptJson &lhs, const LeptJson &rhs)
     return !(lhs == rhs);
 }
 
-//LeptJson::LeptJson(const LeptJson &rhs)
-//{
-//    switch (type_)
-//    {
-//        case LeptType::kLeptString:
-//            LeptSetString(*this, rhs.u.s_, rhs.u.len_);
-//            break;
-//        case LeptType::kLeptArray:
-//            //TODO
-//            break;
-//        case LeptType::kLeptObject:
-//            //TODO
-//            break;
-//        case LeptType::kLeptNumber:
-//            LeptSetNumber(*this , rhs.u.n_);
-//        case LeptType::kLeptFalse:
-//        case LeptType::kLeptTrue:
-//            LeptSetBoolean(*this , rhs.type_ == LeptType::kLeptTrue ? 1 : 0);
-//            break;
-//        case LeptType::kLeptNull:
-//            LeptSetNull(*this);
-//            break;
-//    }
-//}
+void LeptSetType(LeptJson& v , LeptType type)
+{
+    v.type_ = type;
+}
+
+LeptJson::LeptJson(const LeptJson &rhs)
+{
+    LeptInit(*this);  //FIXME: It is right?
+    switch (rhs.type_)
+    {
+        case LeptType::kLeptString:
+            LeptSetString(*this, rhs.u.s_, rhs.u.len_);
+            break;
+        case LeptType::kLeptArray: //deep copy
+            LeptSetArray(*this , rhs.u.acapacity_);
+            for(auto i = 0 ; i < rhs.u.asize_; ++i)
+            {
+                LeptInit(u.e_[i]);
+                u.e_[i] = LeptJson(rhs.u.e_[i]);
+            }
+            u.asize_ = rhs.u.asize_;
+            break;
+        case LeptType::kLeptObject:
+            LeptSetObject(*this, rhs.u.mcapacity_);
+            for(int i = 0; i < rhs.u.msize_; ++i)
+            {
+                if(rhs.u.m_[i].k_ != nullptr)
+                {
+                    memcpy(u.m_[i].k_ = (char *) malloc(rhs.u.m_[i].klen_ + 1), rhs.u.m_[i].k_, rhs.u.m_[i].klen_);
+                    u.m_[i].klen_ = rhs.u.m_[i].klen_;
+                    u.m_[i].k_[u.m_[i].klen_] = '\0';
+                }
+                LeptInit(u.m_[i].v_);
+                u.m_[i].v_ = LeptJson(rhs.u.m_[i].v_);
+            }
+            u.msize_ = rhs.u.msize_;
+            break;
+        case LeptType::kLeptNumber:
+            LeptSetNumber(*this, rhs.u.n_);
+            break;
+        case LeptType::kLeptFalse:  case LeptType::kLeptTrue:
+            LeptSetBoolean(*this, rhs.type_ == LeptType::kLeptTrue ? 1 : 0);
+            break;
+        case LeptType::kLeptNull:
+            LeptSetNull(*this);
+            break;
+    }
+}
+
+
+LeptJson& LeptJson::operator=(LeptJson rhs)
+{
+    Swap(rhs);
+    return *this;
+}
 
 //LeptJson::LeptJson(LeptJson && rhs)
 //{
@@ -688,63 +750,298 @@ bool operator!=(const LeptJson &lhs, const LeptJson &rhs)
 //}
 
 
-//void LeptJson::Swap(LeptJson & rhs)
-//{
-//    if(*this != rhs)
-//    {
-//        //TODO
-//    }
-//}
 
-void LeptSetArray(LeptJson& v , size_t cap)
+
+void LeptJson::Swap(LeptJson & rhs)
+{
+    if(*this != rhs)
+    {
+        if(type_ == LeptType::kLeptNull || type_ == LeptType::kLeptFalse || type_ == LeptType::kLeptTrue)
+        {
+            if(rhs.type_ == LeptType::kLeptObject)
+            {
+                std::swap(u.m_ , rhs.u.m_);
+                std::swap(u.msize_ , rhs.u.msize_);
+            }
+            else if(rhs.type_ == LeptType::kLeptArray)
+            {
+                std::swap(u.e_ , rhs.u.e_);
+                std::swap(u.asize_ , rhs.u.asize_);
+            }
+            else if(rhs.type_ == LeptType::kLeptString)
+            {
+                std::swap(u.s_ , rhs.u.s_);
+                std::swap(u.len_ , rhs.u.len_);
+            }
+            else if(rhs.type_ == LeptType::kLeptNumber)
+            {
+                std::swap(u.n_ , rhs.u.n_);
+            }
+        }
+        else if(type_ == LeptType::kLeptObject)
+        {
+            if(rhs.type_ == LeptType::kLeptNull  || rhs.type_ == LeptType::kLeptTrue || rhs.type_ == LeptType::kLeptFalse)
+            {
+                std::swap(u.m_ , rhs.u.m_);
+                std::swap(u.msize_ , rhs.u.msize_);
+            }
+            else if(rhs.type_ == LeptType::kLeptObject)
+            {
+                std::swap(u.m_ , rhs.u.m_);
+                std::swap(u.msize_ , rhs.u.msize_);
+            }
+            else if(rhs.type_ == LeptType::kLeptArray)
+            {
+                auto tmp = rhs.u.e_;
+                auto tmpsize = rhs.u.asize_;
+                std::swap(u.m_ , rhs.u.m_);
+                std::swap(u.msize_ , rhs.u.msize_);
+                u.e_ = tmp;
+                u.asize_ = tmpsize;
+            }
+            else if(rhs.type_ == LeptType::kLeptNumber)
+            {
+                auto tmp = rhs.u.n_;
+                std::swap(u.m_ , rhs.u.m_);
+                std::swap(u.msize_ , rhs.u.msize_);
+                u.n_ = tmp;
+            }
+            else if(rhs.type_ == LeptType::kLeptString)
+            {
+                auto tmp = rhs.u.s_;
+                auto tmpsize = rhs.u.len_;
+                std::swap(u.m_ , rhs.u.m_);
+                std::swap(u.msize_ , rhs.u.msize_);
+                u.s_ = tmp;
+                u.len_ = tmpsize;
+            }
+        }
+        else if(type_ == LeptType::kLeptArray)
+        {
+            if(rhs.type_ == LeptType::kLeptNull || rhs.type_ == LeptType::kLeptTrue || rhs.type_ == LeptType::kLeptFalse)
+            {
+                std::swap(u.e_ , rhs.u.e_);
+                std::swap(u.asize_ , rhs.u.asize_);
+            }
+            else if(rhs.type_ == LeptType::kLeptObject)
+            {
+                auto tmp = rhs.u.m_;
+                auto tmpsize = rhs.u.msize_;
+                std::swap(u.e_ , rhs.u.e_);
+                std::swap(u.asize_, rhs.u.asize_);
+                u.m_ = tmp;
+                u.msize_ = tmpsize;
+            }
+            else if(rhs.type_ == LeptType::kLeptArray)
+            {
+                std::swap(u.e_ , rhs.u.e_);
+                std::swap(u.asize_ , rhs.u.asize_);
+            }
+            else if(rhs.type_ == LeptType::kLeptNumber)
+            {
+                auto tmp = rhs.u.n_;
+                std::swap(u.e_ , rhs.u.e_);
+                std::swap(u.asize_ , rhs.u.asize_);
+                u.n_ = tmp;
+            }
+            else if(rhs.type_ == LeptType::kLeptString)
+            {
+                auto tmp = rhs.u.s_;
+                auto tmpsize = rhs.u.len_;
+                std::swap(u.e_ , rhs.u.e_);
+                std::swap(u.asize_ , rhs.u.asize_);
+                u.s_ = tmp;
+                u.len_ = tmpsize;
+            }
+        }
+        else if(type_ == LeptType::kLeptNumber)
+        {
+            if(rhs.type_ == LeptType::kLeptTrue || rhs.type_ == LeptType::kLeptFalse || rhs .type_ == LeptType::kLeptNull)
+            {
+                std::swap(u.n_ , rhs.u.n_);
+            }
+            else if(rhs.type_ == LeptType::kLeptObject)
+            {
+                auto tmp = u.n_;
+                std::swap(u.m_ , rhs.u.m_);
+                std::swap(u.msize_ , rhs.u.msize_);
+                rhs.u.n_ = tmp;
+            }
+            else if(rhs.type_ == LeptType::kLeptArray)
+            {
+                auto tmp = u.n_;
+                std::swap(u.e_ ,  rhs.u.e_);
+                std::swap(u.asize_ , rhs.u.asize_);
+                rhs.u.n_ = tmp;
+            }
+            else if(rhs.type_ == LeptType::kLeptNumber)
+            {
+                std::swap(u.n_ , rhs.u.n_);
+            }
+            else if(rhs.type_ == LeptType::kLeptString)
+            {
+                auto tmp = u.n_;
+                std::swap(u.s_ , rhs.u.s_);
+                std::swap(u.len_ , rhs.u.len_);
+            }
+        }
+        else if(type_ == LeptType::kLeptString)
+        {
+            if(rhs.type_ == LeptType::kLeptTrue || rhs.type_ == LeptType::kLeptFalse || rhs.type_ == LeptType::kLeptNull)
+            {
+                std::swap(u.s_, rhs.u.s_);
+                std::swap(u.len_ , rhs.u.len_);
+            }
+            else if(rhs.type_ == LeptType::kLeptNumber)
+            {
+                auto tmp = rhs.u.n_;
+                std::swap(u.s_ , rhs.u.s_);
+                std::swap(u.len_ , rhs.u.len_);
+                u.n_ = tmp;
+            }
+            else if(rhs.type_ == LeptType::kLeptObject)
+            {
+                auto tmp = rhs.u.m_;
+                auto tmpsize = rhs.u.msize_;
+                std::swap(u.s_ , rhs.u.s_);
+                std::swap(u.len_ , rhs.u.len_);
+                u.msize_ = tmpsize;
+                u.m_ = tmp;
+            }
+            else if(rhs.type_ == LeptType::kLeptArray)
+            {
+                auto tmp = rhs.u.e_;
+                auto tmpsize = rhs.u.asize_;
+                std::swap(u.s_ , rhs.u.s_);
+                std::swap(u.len_ , rhs.u.len_);
+                u.e_ = tmp;
+                u.asize_ = tmpsize;
+            }
+            else if(rhs.type_ == LeptType::kLeptString)
+            {
+                std::swap(u.s_ , rhs.u.s_);
+                std::swap(u.len_ , rhs.u.len_);
+            }
+        }
+        std::swap(type_ , rhs.type_);
+    }
+}
+
+void LeptSetArray(LeptJson &v, size_t cap)
 {
     LeptFree(v);
     v.type_ = LeptType::kLeptArray;
     v.u.asize_ = 0;
-    v.u.capacity_ = cap;
+    v.u.acapacity_ = cap;
     v.u.e_ = cap > 0 ? (LeptJson *) malloc(cap * sizeof(LeptJson)) : nullptr;
 }
 
-
-size_t LeptGetArrayCapacity(const LeptJson& v)
+size_t LeptGetArrayCapacity(const LeptJson &v)
 {
     assert(v.type_ == LeptType::kLeptArray);
-    return v.u.capacity_;
+    return v.u.acapacity_;
 }
 
-void LeptReserveArray(LeptJson& v , size_t cap)
+void LeptReserveArray(LeptJson &v, size_t cap)
 {
     assert(v.type_ == LeptType::kLeptArray);
-    if(v.u.capacity_ < cap)
+    if (v.u.acapacity_ < cap)
     {
-        v.u.capacity_ = cap;
-        v.u.e_ = (LeptJson*)realloc(v.u.e_ , cap * sizeof(LeptJson));
+        v.u.acapacity_ = cap;
+        v.u.e_ = (LeptJson *) realloc(v.u.e_, cap * sizeof(LeptJson));
     }
 }
 
-void LeptShrinkArray(LeptJson& v)
+void LeptShrinkArray(LeptJson &v)
 {
     assert(v.type_ == LeptType::kLeptArray);
-    if(v.u.capacity_ > v.u.asize_)
+    if (v.u.acapacity_ > v.u.asize_)
     {
-        v.u.capacity_ = v.u.asize_;
-        v.u.e_ = (LeptJson *) realloc(v.u.e_, v.u.capacity_ * sizeof(LeptJson));
+        v.u.acapacity_ = v.u.asize_;
+        v.u.e_ = (LeptJson *) realloc(v.u.e_, v.u.acapacity_ * sizeof(LeptJson));
     }
 }
 
-LeptJson& LeptPushbackArrayElement(LeptJson& v)
+LeptJson &LeptPushbackArrayElement(LeptJson &v)
 {
     assert(v.type_ == LeptType::kLeptArray);
-    if(v.u.asize_ == v.u.capacity_)
-        LeptReserveArray(v , v.u.capacity_ == 0 ? 1 : v.u.capacity_ * 2);
+    if (v.u.asize_ == v.u.acapacity_)
+        LeptReserveArray(v, v.u.acapacity_ == 0 ? 1 : v.u.acapacity_ * 2);
     LeptInit(v.u.e_[v.u.asize_]);
     return v.u.e_[v.u.asize_++];
 }
 
-void LeptPopbackArrayElement(LeptJson& v)
+void LeptPopbackArrayElement(LeptJson &v)
 {
     assert(v.type_ == LeptType::kLeptArray && v.u.asize_ > 0);
     LeptFree(v.u.e_[--v.u.asize_]);
+}
+
+void LeptClearArray(LeptJson& v)
+{
+    assert(v.type_ == LeptType::kLeptArray);
+    LeptFree(v);
+    v.u.e_ = nullptr;
+    v.u.asize_ = 0;
+}
+
+
+void LeptSetObject(LeptJson& v, size_t cap)
+{
+    LeptFree(v);
+    v.type_ = LeptType::kLeptObject;
+    v.u.msize_ = 0;
+    v.u.mcapacity_ = cap;
+    v.u.m_ = cap > 0 ? (LeptMember*) malloc(cap * sizeof(LeptMember)) : nullptr;
+}
+
+size_t LeptGetObjectCapacity(const LeptJson& v)
+{
+    assert(v.type_ == LeptType::kLeptObject);
+    return v.u.mcapacity_;
+}
+
+void LeptReserveObject(LeptJson& v , size_t cap)
+{
+    assert(v.type_ == LeptType::kLeptObject);
+    if(cap > v.u.mcapacity_)
+    {
+        v.u.mcapacity_ = cap;
+        v.u.m_ = (LeptMember*)realloc(v.u.e_ , cap * sizeof(LeptMember));
+    }
+}
+
+void LeptShrinkObejct(LeptJson& v)
+{
+    assert(v.type_ == LeptType::kLeptObject);
+    if(v.u.mcapacity_ > v.u.msize_)
+    {
+        v.u.mcapacity_ = v.u.msize_;
+        v.u.m_ = (LeptMember*)realloc(v.u.m_ , v.u.mcapacity_ * sizeof(LeptMember));
+    }
+}
+
+void LeptClearObejct(LeptJson& v)
+{
+    assert(v.type_ == LeptType::kLeptObject);
+    LeptFree(v);
+    v.u.msize_ = 0;
+    v.u.m_ = nullptr;
+}
+
+LeptJson& LeptSetObjectValue(LeptJson& v , const char* key, size_t klen)
+{
+    assert(v.type_ == LeptType::kLeptObject);
+    auto if_exist_idx = LeptFindObjectIndex(v , key , klen);
+    if(if_exist_idx == kLeptKeyNotExist)
+    {
+        if(v.u.msize_ == v.u.mcapacity_)
+            LeptReserveObject(v , v.u.mcapacity_ == 0 ? 1 : v.u.mcapacity_ * 2);
+        LeptInit(v.u.m_[v.u.msize_].v_);
+        return v.u.m_[v.u.msize_++].v_;
+    }
+    else
+        return v.u.m_[if_exist_idx].v_;
 }
 
 
