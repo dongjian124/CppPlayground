@@ -549,22 +549,22 @@ TEST_F(TestCopy, test_copy)
 //Just use for TEST_F
 class TestForF : public ::testing::Test {};
 
-//TEST_F(TestForF, test_move)
-//{
-//    LeptJson v1;
-//    LeptInit(v1);
-//    LeptParse(v1, "{\"t\":true,\"f\":false,\"n\":null,\"d\":1.5,\"a\":[1,2,3]}");
-//
-//    LeptJson v2(v1);
-//    LeptJson v3(std::move(v2));
-//
-//    EXPECT_EQ(LeptType::kLeptNull, LeptGetType(v2));
-//    EXPECT_TRUE(v1 == v3);
-//
-//    LeptFree(v1);
-//    LeptFree(v2);
-//    LeptFree(v3);
-//}
+TEST_F(TestForF, test_move)
+{
+    LeptJson v1;
+    LeptInit(v1);
+    LeptParse(v1, "{\"t\":true,\"f\":false,\"n\":null,\"d\":1.5,\"a\":[1,2,3]}");
+
+    LeptJson v2(v1);
+    LeptJson v3(std::move(v2));
+
+    EXPECT_EQ(LeptType::kLeptNull, LeptGetType(v2));
+    EXPECT_TRUE(v1 == v3);
+
+    LeptFree(v1);
+    LeptFree(v2);
+    LeptFree(v3);
+}
 
 TEST_F(TestForF, test_swap)
 {
@@ -573,7 +573,7 @@ TEST_F(TestForF, test_swap)
     LeptInit(v2);
     LeptSetString(v1, "Hello", 5);
     LeptSetString(v2, "World!", 6);
-    v1.Swap(v2);
+    v1.swap(v2);
     EXPECT_STREQ("World!", LeptGetString(v1));
     EXPECT_STREQ("Hello", LeptGetString(v2));
 

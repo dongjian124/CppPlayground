@@ -691,7 +691,7 @@ void LeptSetType(LeptJson& v , LeptType type)
 
 LeptJson::LeptJson(const LeptJson &rhs)
 {
-    LeptInit(*this);  //FIXME: It is right?
+//    LeptInit(*this);  //FIXME: It is right?
     switch (rhs.type_)
     {
         case LeptType::kLeptString:
@@ -736,23 +736,57 @@ LeptJson::LeptJson(const LeptJson &rhs)
 
 LeptJson& LeptJson::operator=(LeptJson rhs)
 {
-    Swap(rhs);
+    swap(rhs);
     return *this;
 }
 
-//LeptJson::LeptJson(LeptJson && rhs)
-//{
-//    LeptFree(*this);
-//
-//
-//
-//    LeptInit(rhs);
-//}
+LeptJson::LeptJson(LeptJson && rhs)
+{
+    LeptFree(*this);
+
+    switch (rhs.type_)
+    {
+        case LeptType::kLeptFalse:
+        case LeptType::kLeptTrue:
+            LeptSetBoolean(*this , rhs.type_ == LeptType::kLeptTrue ? 1 : 0);
+            break;
+        case LeptType::kLeptNull:
+            LeptSetNull(*this);
+        case LeptType::kLeptArray:
+            u.e_ = rhs.u.e_;
+            u.asize_ = rhs.u.asize_;
+            u.acapacity_ = rhs.u.acapacity_;
+            rhs.u.e_ = nullptr;
+            rhs.u.asize_ = rhs.u.acapacity_ = 0;
+            type_ = rhs.type_;
+            break;
+        case LeptType::kLeptObject:
+            u.msize_ = rhs.u.msize_;
+            u.mcapacity_ = rhs.u.mcapacity_;
+            u.m_ = rhs.u.m_;
+            rhs.u.m_ = nullptr;
+            rhs.u.msize_ = rhs.u.mcapacity_ = 0;
+            type_ = rhs.type_;
+            break;
+        case LeptType::kLeptNumber:
+            LeptSetNumber(*this , rhs.u.n_);
+            break;
+        case LeptType::kLeptString:
+            u.s_ = rhs.u.s_;
+            u.len_ = rhs.u.len_;
+            rhs.u.s_ = nullptr;
+            rhs.u.len_ = 0;
+            type_ = rhs.type_;
+            break;
+    }
+
+    LeptInit(rhs);
+}
 
 
 
 
-void LeptJson::Swap(LeptJson & rhs)
+void LeptJson::swap(LeptJson & rhs)
 {
     if(*this != rhs)
     {

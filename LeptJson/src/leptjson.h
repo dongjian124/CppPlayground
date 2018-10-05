@@ -60,10 +60,10 @@ public:
     }
     LeptJson(const LeptJson&); //deep copy
     LeptJson& operator=(LeptJson); //copy opeartor
-//    LeptJson(LeptJson&&);  //move copy
+    LeptJson(LeptJson&&);  //move copy
 //    LeptJson& operator=(LeptJson&&); //move operator
-//
-    void Swap(LeptJson& );
+
+    void swap(LeptJson& );
 };
 
 class LeptMember
